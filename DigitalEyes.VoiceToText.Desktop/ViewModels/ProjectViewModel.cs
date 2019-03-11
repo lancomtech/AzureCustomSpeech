@@ -354,7 +354,41 @@ namespace DigitalEyes.VoiceToText.Desktop.ViewModels
                 }
                 else
                 {
-                    MessageBox.Show("No snippets are opened for converting.");
+                    MessageBox.Show("No snippets are opened for converting, falling back to tts.txt file in the exe directory...");
+                    using (StreamReader sr = new StreamReader("tts.txt"))
+                    {
+                        var textToConvert = sr.ReadToEnd();
+
+                        var newFile = $"tts/{DateTime.Now:yyyMMdd_HHmmss}";
+                        if (textToConvert.Length <= 1024)
+                        {
+                            await textToSpeech.GetSpeechAsync(textToConvert, newFile + ".wav", VoiceEndpointsVM.SelectedVoiceEndpoint);
+                        }
+                        else
+                        {
+                            MessageBox.Show("Text breaches upper limit of 1024 characters, splitting text and converting to speech...");
+                            int part = 1;
+                            while (textToConvert.Length > 0)
+                            {
+                                string text;
+                                if (textToConvert.Length <= 1024)
+                                {
+                                    text = textToConvert;
+                                    textToConvert = string.Empty;
+                                }
+                                else
+                                {
+                                    text = textToConvert.Substring(0, 1024);
+                                    var lastSpace = text.LastIndexOf(' ');
+                                    text = text.Substring(0, lastSpace);
+                                    textToConvert = textToConvert.Substring(lastSpace);
+                                }
+
+                                await textToSpeech.GetSpeechAsync(text, $"{newFile}_part{part++}.wav", VoiceEndpointsVM.SelectedVoiceEndpoint);
+                            }
+                        }
+                        
+                    }
                 }
             }
             catch (Exception exc)
